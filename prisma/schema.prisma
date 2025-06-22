@@ -21,14 +21,8 @@ model User {
   name      String
   birthdate DateTime @db.Date
   phone     String   @unique
-  sex       Sex
   email     String?  @unique
   password  String?
 
   @@map("users")
-}
-
-enum Sex {
-  Male
-  Female
 }

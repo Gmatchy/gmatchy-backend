@@ -4,15 +4,9 @@ import {
   MinLength,
   IsDateString,
   IsPhoneNumber,
-  IsEnum,
   IsOptional,
   MaxLength,
 } from 'class-validator';
-
-export enum Sex {
-  Male = 'male',
-  Female = 'female',
-}
 
 export class RegisterDto {
   @IsString()
@@ -25,9 +19,6 @@ export class RegisterDto {
 
   @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number' })
   phone: string;
-
-  @IsEnum(Sex, { message: 'Sex must be male or female' })
-  sex: Sex;
 
   @IsOptional()
   @IsEmail({}, { message: 'Please provide a valid email address' })

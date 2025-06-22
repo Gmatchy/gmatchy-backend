@@ -1,6 +1,3 @@
--- CreateEnum
-CREATE TYPE "Sex" AS ENUM ('Male', 'Female');
-
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -9,7 +6,6 @@ CREATE TABLE "users" (
     "name" TEXT NOT NULL,
     "birthdate" DATE NOT NULL,
     "phone" TEXT NOT NULL,
-    "sex" "Sex" NOT NULL,
     "email" TEXT,
     "password" TEXT,
 

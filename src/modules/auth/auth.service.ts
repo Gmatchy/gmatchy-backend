@@ -9,7 +9,6 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { LoginDto, RegisterDto, SendOtpDto, VerifyOtpDto, GoogleSsoDto } from './dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { $Enums } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -44,7 +43,7 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { name, birthdate, phone, sex, email, password } = registerDto;
+    const { name, birthdate, phone, email, password } = registerDto;
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
@@ -54,7 +53,6 @@ export class AuthService {
           name,
           birthdate: new Date(birthdate),
           phone,
-          sex: sex as unknown as $Enums.Sex,
           email,
           password: hashedPassword,
         },
@@ -133,7 +131,6 @@ export class AuthService {
         email: true,
         phone: true,
         birthdate: true,
-        sex: true,
       },
     });
 
