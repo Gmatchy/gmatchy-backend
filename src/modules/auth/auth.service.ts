@@ -1,12 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { LoginDto, RegisterDto, SendOtpDto, VerifyOtpDto, GoogleSsoDto } from './dto';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { $Enums } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  // OTP-based authentication (primary flow)
   sendOtp(sendOtpDto: SendOtpDto) {
     // TODO: Implement OTP sending logic (SMS/WhatsApp)
     console.log('Sending OTP to:', sendOtpDto.phone);
@@ -32,24 +43,59 @@ export class AuthService {
     };
   }
 
-  register(registerDto: RegisterDto) {
-    // TODO: Implement registration logic
-    console.log('Register called with:', registerDto);
-    // After user is created, generate a token
-    const payload = { username: registerDto.phone, sub: 'new-user-id' };
-    return {
-      success: true,
-      message: 'Registration successful',
-      access_token: this.jwtService.sign(payload),
-    };
+  async register(registerDto: RegisterDto) {
+    const { name, birthdate, phone, sex, email, password } = registerDto;
+
+    const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          name,
+          birthdate: new Date(birthdate),
+          phone,
+          sex: sex as unknown as $Enums.Sex,
+          email,
+          password: hashedPassword,
+        },
+      });
+
+      const payload = { username: user.phone, sub: user.id };
+      return {
+        success: true,
+        message: 'Registration successful',
+        access_token: this.jwtService.sign(payload),
+      };
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('A user with this phone or email already exists.');
+      }
+      throw new InternalServerErrorException('An unexpected error occurred.');
+    }
   }
 
-  // Traditional login (fallback)
-  login(loginDto: LoginDto) {
-    // TODO: Implement login logic
-    // On successful login, create a JWT payload
-    const payload = { username: loginDto.email || loginDto.phone, sub: 'user-id-placeholder' };
-    console.log('Login called with:', loginDto);
+  async login(loginDto: LoginDto) {
+    const { email, phone, password } = loginDto;
+
+    if (!password) {
+      throw new UnauthorizedException('Password is required for this login method.');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials.');
+    }
+
+    const isPasswordMatching = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordMatching) {
+      throw new UnauthorizedException('Invalid credentials.');
+    }
+
+    const payload = { username: user.phone, sub: user.id };
     return {
       success: true,
       message: 'Login successful',
@@ -78,12 +124,26 @@ export class AuthService {
     };
   }
 
-  getProfile(user: unknown) {
-    // TODO: Implement get profile logic
-    console.log('Get profile called for user:', user);
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        birthdate: true,
+        sex: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
     return {
       success: true,
-      user: user ?? { message: 'No user data available' },
+      user,
     };
   }
 }

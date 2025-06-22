@@ -7,7 +7,6 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // OTP-based authentication (primary)
   @Post('send-otp')
   sendOtp(@Body() sendOtpDto: SendOtpDto) {
     this.authService.sendOtp(sendOtpDto);
@@ -19,30 +18,28 @@ export class AuthController {
   }
 
   @Post('register')
-  register(@Body() registerDto: RegisterDto) {
-    this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
-  // Traditional login (fallback)
   @Post('login')
-  login(@Body() loginDto: LoginDto) {
-    this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
   }
 
-  // SSO authentication
   @Post('google')
   googleAuth(@Body() googleSsoDto: GoogleSsoDto) {
-    this.authService.googleAuth(googleSsoDto);
+    return this.authService.googleAuth(googleSsoDto);
   }
 
   @Post('logout')
   logout() {
-    this.authService.logout();
+    return this.authService.logout();
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
-    this.authService.getProfile(req.user);
+  async getProfile(@Request() req) {
+    return this.authService.getProfile(req.user.userId);
   }
 }
