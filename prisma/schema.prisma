@@ -18,11 +18,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name      String
-  birthdate DateTime @db.Date
-  phone     String   @unique
-  email     String?  @unique
-  password  String?
+  name     String
+  phone    String  @unique
+  email    String? @unique
+  password String?
 
   @@map("users")
 }

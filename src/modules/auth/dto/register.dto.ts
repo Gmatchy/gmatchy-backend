@@ -14,9 +14,6 @@ export class RegisterDto {
   @MaxLength(50, { message: 'Name must not exceed 50 characters' })
   name: string;
 
-  @IsDateString({}, { message: 'Please provide a valid birth date (YYYY-MM-DD)' })
-  birthdate: string;
-
   @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number' })
   phone: string;
 
