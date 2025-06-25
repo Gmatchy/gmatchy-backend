@@ -3,7 +3,9 @@ import {
   ConflictException,
   InternalServerErrorException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -15,6 +17,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {}
 
   sendOtp(sendOtpDto: SendOtpDto) {
@@ -38,7 +41,7 @@ export class AuthService {
     return {
       success: true,
       message: 'OTP verified successfully',
-      access_token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
     };
   }
 
@@ -57,11 +60,13 @@ export class AuthService {
         },
       });
 
-      const payload = { username: user.phone, sub: user.id };
+      const tokens = await this.getTokens(user.id, user.phone);
+      await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+
       return {
         success: true,
-        message: 'Registration successful',
-        access_token: this.jwtService.sign(payload),
+        message: 'User created successfully',
+        ...tokens,
       };
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -92,15 +97,72 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    const payload = { username: user.phone, sub: user.id };
+    const tokens = await this.getTokens(user.id, user.phone);
+    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+
     return {
       success: true,
       message: 'Login successful',
-      access_token: this.jwtService.sign(payload),
+      ...tokens,
     };
   }
 
-  // Google SSO
+  async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId, hashedRefreshToken: { not: null } },
+      data: { hashedRefreshToken: null },
+    });
+    return {
+      success: true,
+      message: 'Logout successful',
+    };
+  }
+
+  async refreshToken(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.hashedRefreshToken) {
+      throw new ForbiddenException('Access Denied');
+    }
+
+    const isRefreshTokenMatching = await bcrypt.compare(refreshToken, user.hashedRefreshToken);
+
+    if (!isRefreshTokenMatching) {
+      throw new ForbiddenException('Access Denied');
+    }
+
+    const tokens = await this.getTokens(user.id, user.phone);
+    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+    return tokens;
+  }
+
+  private async updateRefreshTokenHash(userId: string, refreshToken: string) {
+    const hash = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { hashedRefreshToken: hash },
+    });
+  }
+
+  private async getTokens(userId: string, username: string) {
+    const payload = { sub: userId, username };
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get<string>('JWT_EXPIRATION_TIME'),
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION_TIME'),
+      }),
+    ]);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
   googleAuth(googleSsoDto: GoogleSsoDto) {
     // TODO: Implement Google SSO logic
     // On successful SSO, create a JWT payload
@@ -109,15 +171,7 @@ export class AuthService {
     return {
       success: true,
       message: 'Google authentication successful',
-      access_token: this.jwtService.sign(payload),
-    };
-  }
-
-  logout() {
-    // TODO: Implement logout logic (e.g., token blocklisting)
-    return {
-      success: true,
-      message: 'Logout successful',
+      accessToken: this.jwtService.sign(payload),
     };
   }
 

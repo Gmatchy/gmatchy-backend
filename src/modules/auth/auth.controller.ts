@@ -1,7 +1,26 @@
-import { Controller, Post, Body, Get, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, SendOtpDto, VerifyOtpDto, GoogleSsoDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RefreshTokenGuard } from './guards/jwt-refresh.guard';
+
+type AuthenticatedRequest = Request & {
+  user: {
+    id: string;
+    username: string;
+    refreshToken?: string;
+  };
+};
 
 @Controller('auth')
 export class AuthController {
@@ -32,14 +51,30 @@ export class AuthController {
     return this.authService.googleAuth(googleSsoDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout() {
-    return this.authService.logout();
+  @HttpCode(HttpStatus.OK)
+  logout(@Req() req: AuthenticatedRequest) {
+    return this.authService.logout(req.user.id);
+  }
+
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refreshToken(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
+    const refreshToken = req.user.refreshToken;
+
+    if (!refreshToken) {
+      throw new ForbiddenException('Refresh token not found');
+    }
+
+    return this.authService.refreshToken(userId, refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  async getProfile(@Request() req) {
-    return this.authService.getProfile(req.user.userId);
+  getProfile(@Req() req: AuthenticatedRequest) {
+    return this.authService.getProfile(req.user.id);
   }
 }
