@@ -1,0 +1,13 @@
+model User {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    name               String
+    phone              String  @unique
+    email              String? @unique
+    password           String?
+    hashedRefreshToken String?
+
+    @@map("users")
+}

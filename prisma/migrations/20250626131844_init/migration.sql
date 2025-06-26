@@ -7,6 +7,7 @@ CREATE TABLE "users" (
     "phone" TEXT NOT NULL,
     "email" TEXT,
     "password" TEXT,
+    "hashedRefreshToken" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
