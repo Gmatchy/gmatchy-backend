@@ -61,9 +61,8 @@ export class AuthController {
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refreshToken(@Req() req: AuthenticatedRequest) {
+  refreshToken(@Req() req: AuthenticatedRequest, @Body('refreshToken') refreshToken: string) {
     const userId = req.user.id;
-    const refreshToken = req.user.refreshToken;
 
     if (!refreshToken) {
       throw new ForbiddenException('Refresh token not found');

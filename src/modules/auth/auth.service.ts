@@ -61,7 +61,7 @@ export class AuthService {
       });
 
       const tokens = await this.getTokens(user.id, user.phone);
-      await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+      await this.updateRefreshToken(user.id, tokens.refreshToken);
 
       return {
         success: true,
@@ -98,7 +98,7 @@ export class AuthService {
     }
 
     const tokens = await this.getTokens(user.id, user.phone);
-    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
       success: true,
@@ -108,9 +108,9 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId, hashedRefreshToken: { not: null } },
-      data: { hashedRefreshToken: null },
+    await this.prisma.user.updateMany({
+      where: { id: userId, refreshToken: { not: null } },
+      data: { refreshToken: null },
     });
     return {
       success: true,
@@ -120,18 +120,18 @@ export class AuthService {
 
   async refreshToken(userId: string, refreshToken: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.hashedRefreshToken) {
+    if (!user || !user.refreshToken) {
       throw new ForbiddenException('Access Denied');
     }
 
-    const isRefreshTokenMatching = await bcrypt.compare(refreshToken, user.hashedRefreshToken);
+    const isRefreshTokenMatching = refreshToken === user.refreshToken;
 
     if (!isRefreshTokenMatching) {
-      throw new ForbiddenException('Access Denied');
+      throw new ForbiddenException('Refresh token is invalid');
     }
 
     const tokens = await this.getTokens(user.id, user.phone);
-    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
     return {
       success: true,
       message: 'Token refreshed successfully',
@@ -139,11 +139,10 @@ export class AuthService {
     };
   }
 
-  private async updateRefreshTokenHash(userId: string, refreshToken: string) {
-    const hash = await bcrypt.hash(refreshToken, 10);
+  private async updateRefreshToken(userId: string, refreshToken: string) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { hashedRefreshToken: hash },
+      data: { refreshToken: refreshToken },
     });
   }
 

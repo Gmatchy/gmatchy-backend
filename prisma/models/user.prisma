@@ -7,7 +7,7 @@ model User {
     phone              String  @unique
     email              String? @unique
     password           String?
-    hashedRefreshToken String?
+    refreshToken       String?
 
     @@map("users")
 }
