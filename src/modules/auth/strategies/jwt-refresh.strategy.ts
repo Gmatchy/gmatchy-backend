@@ -20,7 +20,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
       throw new UnauthorizedException('JWT_REFRESH_SECRET not configured');
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
       secretOrKey: secret,
       passReqToCallback: true,
     });

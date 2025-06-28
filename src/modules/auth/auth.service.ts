@@ -132,7 +132,11 @@ export class AuthService {
 
     const tokens = await this.getTokens(user.id, user.phone);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
-    return tokens;
+    return {
+      success: true,
+      message: 'Token refreshed successfully',
+      ...tokens,
+    };
   }
 
   private async updateRefreshTokenHash(userId: string, refreshToken: string) {
